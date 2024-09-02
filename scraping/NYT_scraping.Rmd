@@ -1,0 +1,189 @@
+---
+title: "NYT wooho"
+author: "Pav"
+date: '2022-06-16'
+  pdf_document: default
+  html_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jsonlite) 
+library(tidyverse)
+library(rvest)
+library(lubridate)
+library(anytime)
+nyt_api_key <- "B8Swl3B2OdxnBuacJyzDHcc93gVPbi1i"
+```
+
+## Query 
+
+
+```{r}
+
+one <-1 
+jan2019_nyt <- fromJSON("https://api.nytimes.com/svc/archive/v1/2019/1.json?api-key=B8Swl3B2OdxnBuacJyzDHcc93gVPbi1i", flatten = TRUE) %>%
+  data.frame()
+feb2019_nyt <- fromJSON("https://api.nytimes.com/svc/archive/v1/2019/2.json?api-key=B8Swl3B2OdxnBuacJyzDHcc93gVPbi1i", flatten = TRUE) %>%
+  data.frame()
+mar2019_nyt <- fromJSON("https://api.nytimes.com/svc/archive/v1/2019/2.json?api-key=B8Swl3B2OdxnBuacJyzDHcc93gVPbi1i", flatten = TRUE) %>%
+  data.frame()
+
+
+
+oopa <- mar2019_nyt[[2, 3]]
+
+text_vec <- read_html(oopa) %>%
+  html_nodes('.evys1bk0') %>%
+  html_text() 
+text_vec
+
+paste(text_vec[1:length(text_vec)], collapse = "")
+
+nyt_scraper <- function(dataset) {
+  u <- ncol(dataset) + 1
+  dataset[u] <- c()
+  for (i in 1:nrow(dataset)) {
+    dataset[i, u] = 1
+  }
+  dataset
+}
+
+nyt_scraper(up_to_december_5)
+text_vec %>%
+  as_tibble()
+
+up_to_december_5 %>%
+  rename(fo = colnames(up_to_december_5)[1])
+
+```
+
+ ## Mini scraper 
+```{r}
+sample <- nyt_2008[1:20, 1:30]
+
+mini_nyt_scraper <- function(dataset) {
+  u <- ncol(dataset) + 1
+  dataset[u] <- c()
+  for (i in 1:nrow(dataset)) {
+    class <- c()
+    if (dataset[i, 12] == "multimedia") {
+      class <- ".paragraph"
+    }
+    else {
+      class <- '.evys1bk0'
+    }
+    dataset[i, u] <- read_html(dataset[i, 3]) %>%
+      html_nodes(class) %>%
+      html_text() %>%
+      paste(.[1:length(.)], collapse = "")
+    Sys.sleep(2)
+  }
+  dataset <- dataset %>%
+    rename(full_test = colnames(dataset)[u])
+}
+full_ny <- mini_nyt_scraper(sample)
+
+full_ny[31]
+
+a <- sample$response.docs.web_url[14]
+
+full_ny[2, 3]
+
+read_html(a)
+
+
+
+```
+
+#Writing a function for JSON 
+
+
+```{r}
+
+year <- 2008
+day <- 1
+b <- cat("eeeeeee", a,"elle", sep = '')
+jan_2008 <- fromJSON("https://api.nytimes.com/svc/archive/v1/2008/1.json?api-key=B8Swl3B2OdxnBuacJyzDHcc93gVPbi1i", flatten = TRUE) %>%
+  data.frame() 
+
+query <- str_glue("https://api.nytimes.com/svc/archive/v1/", year, "/", day, ".json?api-key=B8Swl3B2OdxnBuacJyzDHcc93gVPbi1i", sep = '')
+
+
+
+fromJSON(query)
+```
+
+
+#Trying to scrape a year 
+
+```{r}
+nyt_year_scraper <- function(year, start_month, end_month) {
+  empty_tbl <- tibble()
+  for (i in start_month:end_month) {
+    month_tbl <- tibble()
+    query <- str_glue("https://api.nytimes.com/svc/archive/v1/", year, "/", i, ".json?api-key=B8Swl3B2OdxnBuacJyzDHcc93gVPbi1i", sep = '')
+    month_tbl <- fromJSON(query, flatten = TRUE) %>%
+      data.frame()
+    empty_tbl <- rbind(empty_tbl, month_tbl)
+    Sys.sleep(1)
+  }
+  empty_tbl
+}
+
+art_2008_mar_aug <- nyt_year_scraper(2008, 3, 8)
+art_2008_sept_dec <- nyt_year_scraper(2008, 9, 12)
+nyt_2008 <- rbind(art_2008_jan_feb, art_2008_mar_aug) %>%
+  rbind(., art_2008_sept_dec)
+
+
+nyt_2018 <- nyt_year_scraper(2018, 1, 12)
+
+
+nyt_2012 <- rbind(nyt_2012_1, nyt_2012_2)
+
+write_csv(nyt_2018, "~/Documents/All things R /CURI /NYT_related /Metadata only/nyt_2018_metadata")
+
+nyt_2011[102969, 11]
+
+```
+
+
+## True NYT scraper 
+
+
+```{r}
+true_nyt_scraper <- function(dataset, row_lim) {
+  u <- ncol(dataset) + 1
+  dataset[u] <- c()
+  for (i in 14:row_lim) {                         #setting up the loop 
+    class <- c()
+    if (dataset[i, 12] == "multimedia") {         #specifying html classes conditional
+      class <- ".paragraph"                       #on the file types
+    }
+    else {
+      class <- '.evys1bk0'
+    }
+    dataset[i, u] = read_html(dataset$response.docs.web_url[i]) %>%
+      html_nodes(class) %>%
+      html_text() %>%
+      paste(.[1:length(.)], collapse = "")        #reading in web-site url and extracting
+    Sys.sleep(2)                                  #html element text 
+  }
+  dataset <- dataset %>%
+    rename(full_text = colnames(dataset)[u])
+}
+
+nyt_2008 <- read_csv("~/Documents/All things R /CURI /NYT_related /Metadata only/nyt_2008_metadata")
+
+
+first_50 <- true_nyt_scraper(nyt_2008, 64)
+
+
+nyt_2008 %>%
+  distinct(response.docs.abstract, .keep_all = TRUE) %>%
+  distinct(response.docs._id)
+```
+

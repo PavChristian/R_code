@@ -1,0 +1,401 @@
+---
+title: "Proquest scrapers"
+author: "Pav"
+date: '2022-06-20'
+output: pdf_document
+editor_options:
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+library(anytime)
+library(xml2)
+library(lubridate)
+library(robotstxt)
+library(tidyverse)
+library(RSelenium)
+library(netstat)
+paths_allowed(paths = "https://www.proquest.com/docview/848108862/B8AAA9724B18444CPQ/4?accountid=351")
+```
+
+## Selenium server 
+
+```{r}
+#Run both lines of code 
+
+
+rs_driver_object <- rsDriver(browser = "firefox",
+                             verbose = FALSE,
+                             chromever = NULL,
+                             port = free_port(random = TRUE),
+                             geckover = "0.31.0")
+remDr <- rs_driver_object$client
+
+#DO NOT FORGET TO LOG IN 
+
+
+```
+
+
+## Navigation (getting to a needed tab on Proquest)
+```{r}
+remDr$navigate('https://www.proquest.com/publication/10482/citation/E22884B209AE43ADPQ/1?accountid=351&parentSessionId=9seLkDYy1cJyfCGZE6r2kKR1WwRBZGr51Rh5RC0EDVw%3D&parentSessionId=DvrLmHezLjTa5x1B6mhrMkvC3n%2FnQwrnKg%2FhxLxOL2o%3D&parentSessionId=YLirkjgyEXP%2FqubOZPhJmrmS1Hi4WbfbeUkI%2BbOLq%2FI%3D&parentSessionId=ilnlye60s7wdP6cXVVFmWVwzizA5ztP%2BrJEI8s1V81Q%3D&parentSessionId=xiVxrz1WqCi3YLtAVq4RN3gpECaqrezisbYQxII6%2F6A%3D&parentSessionId=ifUDp%2Ba75zgK5GckvtrvRDCu58aNDmE4%2BHFXMAj9sZk%3D&decadeSelected=1980%20-%201989&yearSelected=2014&monthSelected=01&issueNameSelected=02014Y01Y02%2423Jan%2B2%2C%2B2014')
+```
+
+
+## Necessary functions (press the green arrow underneath to run all)
+
+```{r}
+#Retrieving individual elements from the page
+element_touch <- function (xpath, elem_name) {
+  object <- remDr$findElement(using = "xpath", xpath)
+  elem_name <- object$getElementText() %>%
+    unlist()
+  elem_name
+}
+
+## Retrieving using CSS 
+element_touch_css <- function (css) {
+  z <- remDr$findElement(using = "css selector", css) 
+  a <- z$getElementText() %>% unlist()
+  a
+}
+
+#To avoid robot accusation 
+
+dodge_captcha <- function(x) {
+  tryCatch({
+    suppressMessages({
+      element_touch('//*[@id="start"]/div/p[1]', captha)
+    })
+  }, 
+  error = function(e) {
+    NA_character_
+  }
+)
+}
+
+
+#Error supressor 
+
+er_supp <- function(xpath, el_name) {
+  tryCatch({
+    suppressMessages({
+      element_touch(xpath, el_name)
+    })
+  }, 
+  error = function(e) {
+    NA_character_
+  }
+)
+}
+
+#Scrolling through proquest 
+
+
+dodge_error <- function(x) {
+  tryCatch({
+    suppressMessages({
+      element_touch('/html/body/h1', error)
+    })
+  }, 
+  error = function(e) {
+    NA_character_
+  }
+)
+}
+
+
+word_count <- function(x) {
+  tryCatch({
+    suppressMessages({
+      element_touch('//*[(@id = "fullTextZone")]//strong', wordcount)
+    })
+  }, 
+  error = function(e) {
+    NA_character_
+  }
+)
+}
+
+supress_next_issue <- function(x, y) {
+  tryCatch({
+    suppressMessages({
+      a <- remDr$findElement(using = "css selector", 'li.pull-right:nth-child(3)')
+      text <- a$getElementText() %>% unlist()
+      text
+    })
+  }, 
+  error = function(e) {
+    NA_character_
+  }
+)
+}
+
+
+
+
+supress_number <- function(x) {
+  tryCatch({
+    suppressMessages({
+    a <- element_touch('//*[@id="results-nav"]/ul[1]/li[2]/strong[1] | //*[@id="results-nav"]/ul[1]/li[1]/strong[1] | /html/body/div[4]/div[1]/div/div[7]/div[2]/div[1]/div/ul[1]/li[2]/strong[1]', number) %>%
+  parse_double()
+    a
+    })
+  }, 
+  error = function(e) {
+    NA_character_
+  }
+)
+}
+
+supress_number_2 <- function(x) {
+  tryCatch({
+    suppressMessages({
+    a <- element_touch('//*[@id="results-nav"]/ul[1]/li[2]/strong[2] | //*[@id="results-nav"]/ul[1]/li[1]/strong[2] | /html/body/div[4]/div[1]/div/div[7]/div[2]/div[1]/div/ul[1]/li[2]/strong[2]', number) %>%
+    parse_double()
+    a
+    })
+  }, 
+  error = function(e) {
+    NA_character_
+  }
+)
+}
+
+
+
+
+page_scroll <- function (x) {
+  j <- 0
+  .GlobalEnv$j <- j
+  if (!is.na(dodge_captcha()) || !is.na(dodge_error())) {
+    remDr$goBack()
+  }
+  if (is.na(supress_number()) || is.na(supress_number_2())) {
+    remDr$refresh()
+    Sys.sleep(0.5)
+  }
+  if (!is.na(er_supp("/html/body/div[8]/div/button"))) {
+      remDr$refresh
+    }
+  a <- element_touch('//*[@id="results-nav"]/ul[1]/li[2]/strong[1] | //*[@id="results-nav"]/ul[1]/li[1]/strong[1] | /html/body/div[4]/div[1]/div/div[7]/div[2]/div[1]/div/ul[1]/li[2]/strong[1]', number) %>%
+  parse_double()
+  b <- element_touch('//*[@id="results-nav"]/ul[1]/li[2]/strong[2] | //*[@id="results-nav"]/ul[1]/li[1]/strong[2] | /html/body/div[4]/div[1]/div/div[7]/div[2]/div[1]/div/ul[1]/li[2]/strong[2]', number) %>%
+    parse_double()
+  if (a < b) {
+    d <- remDr$findElement(using = "css selector", '.uxf-right-open')
+    d$clickElement()   
+  }
+  else {
+    back_issue <- remDr$findElement(using = "xpath", '//*[@id="start"]/div[2]/div[1]/ul/li/a')
+    back_issue$clickElement()
+      i <- NA
+      while (is.na(i)) {
+        if (!is.na(er_supp('/html/body/div[4]/div[1]/div/div[7]/div/h1', notfound))) {
+          remDr$goBack()
+          remDr$findElement(using = "css selector", 'span.newspaperArticle:nth-child(2) > span:nth-child(1) > a:nth-child(1) > strong:nth-child(1)')$clickElement()
+    }
+        i <- supress_next_issue()
+        Sys.sleep(1)
+      }
+    Sys.sleep(2)  
+    small_next_issu <- remDr$findElement(using = "css selector", 'li.pull-right:nth-child(3)')
+    small_next_issu$clickElement()
+    Sys.sleep(30)
+    k <- NA 
+    while (is.na(k)){
+      k <- er_supp('//*[(@id = "result-header-1")]//*[contains(concat( " ", @class, " " ), concat( " ", "truncatedResultsTitle", " " ))]', ko)
+      Sys.sleep(1)
+    }
+    first <- remDr$findElement(using = "xpath", '//*[(@id = "result-header-1")]//*[contains(concat( " ", @class, " " ), concat( " ", "truncatedResultsTitle", " " ))]')
+    first$clickElement()
+    .GlobalEnv$j <- j + 1
+    Sys.sleep(3)
+  }
+} 
+
+
+er_supp("/html/body/div[8]/div/button")
+
+
+
+#Scraping one Proquest article 
+
+one_scrape <- function (url) {
+  a <- er_supp('//*[(@id = "documentTitle")]', title)
+  b <- er_supp('//text', full_text)
+  c <- er_supp(xpath = '//*[(@id = "authordiv")]//*[contains(concat( " ", @class, " " ), concat( " ", "newspaperArticle", " " ))]//span', date) %>%
+    str_extract('\\d{2} [A-Za-z]+ \\d{4}') %>%
+    anydate()
+  d <- word_count()
+  e <- er_supp('//*[contains(concat( " ", @class, " " ), concat( " ", "truncatedAuthor", " " ))]//*[contains(concat( " ", @class, " " ), concat( " ", "lateralSearch", " " ))]', authors)
+  article_tbl <- as_tibble(a) %>%
+    add_column(date = c,
+            authors = e,
+            full_text = b, 
+            word_count = d)
+   article_tbl
+}
+
+#Filtering out articles without text 
+
+no_text <- function(x) {
+  tryCatch({
+    suppressMessages({
+      webElem <- remDr$findElement(using = "xpath", "//text")
+      full_text <- webElem$getElementText() %>% unlist(.) %>% ifelse(length(.) == 0, NA, .)
+      full_text
+    })
+  }, 
+  error = function(e) {
+    NA_character_
+  }
+)
+}
+
+lets_go <- function() {
+  tryCatch({
+    suppressMessages({
+      firsturl <- remDr$findElement(using = "css selector", '#result-header-1 .truncatedResultsTitle')$getElementText()
+      
+    })
+  }, 
+  error = function(e) {
+    NA_character_
+  }
+)
+}
+
+first_url_f <- function() {
+  firsturl <- remDr$findElement(using = "css selector", '#result-header-1      .truncatedResultsTitle')
+  firsturl$clickElement()
+  
+}
+
+
+
+```
+
+
+```{r}
+
+#Scraping Proquest by limit month and/or day 
+
+super_scraper_3 <- function (x, path) {
+  free_tbl <- tibble() 
+  firsturl <- remDr$findElement(using = "xpath", '//*[(@id = "result-header-1")]//*[contains(concat( " ", @class, " " ), concat( " ", "truncatedResultsTitle", " " ))]')
+  firsturl$clickElement()
+  i <- 0
+  while (i >= 0) {
+    a <- tibble()
+    if (!is.na(dodge_captcha()) || !is.na(dodge_error())) {
+      remDr$goBack()
+      Sys.sleep(2)
+    }
+    if (!is.na(er_supp("/html/body/div[8]/div/button"))) {
+      remDr$refresh()
+    }
+    a <- one_scrape()
+    if (!is.na(er_supp("/html/body/div[8]/div/button"))) {
+      remDr$refresh()
+    }
+    date <- a[[2]]
+    if (!is.na(er_supp("/html/body/div[8]/div/button"))) {
+      remDr$refresh()
+    }
+    while (is.na(date)) {
+      if (!is.na(er_supp("/html/body/div[8]/div/button"))) {
+      remDr$refresh()
+    }
+      a <- one_scrape()
+      date <- a[[2]]
+      remDr$refresh()
+    }
+    if (date > x) {
+      break;
+    }
+    free_tbl <- rbind(free_tbl, a)
+    if (!is.na(er_supp("/html/body/div[8]/div/button"))) {
+      remDr$refresh()
+    }
+    page_scroll()
+    Sys.sleep(0.5)
+    if (!is.na(er_supp("/html/body/div[8]/div/button"))) {
+      remDr$refresh()
+    }
+    i = i + 1  
+    Sys.sleep(0.2)
+    if (i %% 500 == 0) {
+      Sys.sleep(120)
+    }
+    if (j > 0) {
+      write_csv(free_tbl, path) ## Change the name each time you you run 
+    }
+
+  }
+write_csv(free_tbl, path) ## Change the name each time you run 
+free_tbl
+} 
+
+
+
+## Building a dataset 
+
+Nov_2014_5 <- super_scraper_3("2014-11-30", '~/Documents/All things R /CURI /WSJ /2014/Nov_2014_5.csv')
+
+
+
+
+
+#Y-M-D
+
+
+reAug_2008_full <- Aug_2008_full %>%
+  filter(date > "2008-08-21") %>%
+  rbind(Aug_2008_1) %>%
+  rbind(Aug_2008_2)
+
+## Joining sets together 
+
+Jun_2007_27th <- Jun_2007_27th %>%
+  distinct(full_text, .keep_all = TRUE) 
+
+
+
+filenames <- list.files("~/Documents/All things R /CURI /WSJ /2013", pattern = "*.csv", full.names = TRUE) 
+#Dec_2009_\\d.
+join_dem <- function(x) {
+  file_list <- lapply(x, read_csv)
+  empty_tib <- file_list[[1]]
+  for (i in 2:length(file_list)) {
+    empty_tib <- empty_tib %>%
+      rbind(file_list[[i]])
+  }
+  empty_tib
+}
+
+full_2013 <- join_dem(filenames) %>%
+  distinct(full_text, .keep_all = TRUE) %>%
+  arrange(date)
+
+
+levels(as.factor(full_2013$date))
+
+## Saving something to your computer 
+
+write_csv(full_2013, "~/Documents/All things R /CURI /WSJ /2013/full_2013.csv")
+
+```
+
+## Terminate Selenium 
+
+```{r}
+
+remDr$close()
+rs_driver_object$server$stop()
+
+#start > div:nth-child(1) > h1:nth-child(1)
+```
+
