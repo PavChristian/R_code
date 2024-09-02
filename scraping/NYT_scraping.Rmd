@@ -24,11 +24,11 @@ nyt_api_key <- "B8Swl3B2OdxnBuacJyzDHcc93gVPbi1i"
 ```{r}
 
 one <-1 
-jan2019_nyt <- fromJSON("https://api.nytimes.com/svc/archive/v1/2019/1.json?api-key=B8Swl3B2OdxnBuacJyzDHcc93gVPbi1i", flatten = TRUE) %>%
+jan2019_nyt <- fromJSON("https://api.nytimes.com/svc/archive/v1/2019/1.json?api-key={api}", flatten = TRUE) %>%
   data.frame()
-feb2019_nyt <- fromJSON("https://api.nytimes.com/svc/archive/v1/2019/2.json?api-key=B8Swl3B2OdxnBuacJyzDHcc93gVPbi1i", flatten = TRUE) %>%
+feb2019_nyt <- fromJSON("https://api.nytimes.com/svc/archive/v1/2019/2.json?api-key={api}", flatten = TRUE) %>%
   data.frame()
-mar2019_nyt <- fromJSON("https://api.nytimes.com/svc/archive/v1/2019/2.json?api-key=B8Swl3B2OdxnBuacJyzDHcc93gVPbi1i", flatten = TRUE) %>%
+mar2019_nyt <- fromJSON("https://api.nytimes.com/svc/archive/v1/2019/2.json?api-key={api}", flatten = TRUE) %>%
   data.frame()
 
 
@@ -106,7 +106,7 @@ read_html(a)
 year <- 2008
 day <- 1
 b <- cat("eeeeeee", a,"elle", sep = '')
-jan_2008 <- fromJSON("https://api.nytimes.com/svc/archive/v1/2008/1.json?api-key=B8Swl3B2OdxnBuacJyzDHcc93gVPbi1i", flatten = TRUE) %>%
+jan_2008 <- fromJSON("https://api.nytimes.com/svc/archive/v1/2008/1.json?api-key={api}", flatten = TRUE) %>%
   data.frame() 
 
 query <- str_glue("https://api.nytimes.com/svc/archive/v1/", year, "/", day, ".json?api-key=B8Swl3B2OdxnBuacJyzDHcc93gVPbi1i", sep = '')
@@ -124,7 +124,7 @@ nyt_year_scraper <- function(year, start_month, end_month) {
   empty_tbl <- tibble()
   for (i in start_month:end_month) {
     month_tbl <- tibble()
-    query <- str_glue("https://api.nytimes.com/svc/archive/v1/", year, "/", i, ".json?api-key=B8Swl3B2OdxnBuacJyzDHcc93gVPbi1i", sep = '')
+    query <- str_glue("https://api.nytimes.com/svc/archive/v1/", year, "/", i, ".json?api-key={api}", sep = '')
     month_tbl <- fromJSON(query, flatten = TRUE) %>%
       data.frame()
     empty_tbl <- rbind(empty_tbl, month_tbl)
