@@ -1,21 +1,22 @@
 ---
 title: "Sentiment anlsys"
-author: "Pav"
+author: "Pavel"
 date: '2022-07-25'
 editor_options:
   chunk_output_type: console
 ---
+## This markdown contains code for joining sanctions datasets with the sentiment scores obtained from LIWC
 ```{r}
 library(tidyverse)
 library(readxl)
 library(writexl)
 library(tidymodels)
 library(ggrepel)
-
-Sanctions <- read_excel("Documents/All things R /CURI /Other data/GSDB_V2 (1)/GSDB_V2.xls")
-US_aid <- read_csv("Documents/All things R /CURI /Other data/us_foreign_aid_country.csv")
-WSJ_LIWC <- read_csv("Documents/All things R /CURI /WSJ /full years/WSJ_5_LIWC.csv")
-write_csv(WSJ_1989_filter, "~/Documents/All things R /CURI /WSJ /full years/WSJ_1989_filter.csv")
+# Reading in the data 
+Sanctions <- read_excel("GSDB_V2 (1)/GSDB_V2.xls")
+US_aid <- read_csv("us_foreign_aid_country.csv")
+WSJ_LIWC <- read_csv("full years/WSJ_5_LIWC.csv")
+write_csv(WSJ_1989_filter, "WSJ_1989_filter.csv")
 ```
 
 ## Tidying 
@@ -32,6 +33,7 @@ tidy_aid <- US_aid %>%
 ```
 
 ```{r}
+# Changing country names
 tone_5 <- WSJ_LIWC[-1,] %>% ## Neither Congo
   filter(!str_detect(Analytic, "[A-Za-z]"),
          !str_detect(Clout, "[A-Za-z]"),
@@ -61,6 +63,7 @@ tone_5 <- WSJ_LIWC[-1,] %>% ## Neither Congo
 
 ```
 
+#Cleaning sanctions
 
 ```{r}
 gabs <- function(name){
@@ -113,18 +116,19 @@ full_data <- tidy_aid %>%
          sanctions = ifelse(sanctions == 1, "Yes", "No"))
 ```
 
+## Building graphs and models 
 
 
 
 ```{r}
-
+# Finding outliers
 outliers <- full_data %>%
   mutate(category = ifelse(avg_tone < 15 | avg_tone > 75, "Yes", "No")) %>%
   unite("Country_Year", target:year, remove = FALSE, sep =" ") %>%
   filter(avg_tone < 15 | avg_tone > 75)
 
 
-#Linear 
+#Linear regression
 full_data %>%
   mutate(category = ifelse(avg_tone < 15 | avg_tone > 75, "Yes", "No")) %>%
   ggplot(aes(avg_tone, total_aid, color = category)) + 
@@ -163,7 +167,6 @@ tidy(lm_fit)
 
 glance(lm_fit)
 
-
 augment(lm_fit, full_data) %>%
   mutate(logged_aid = log(total_aid, base = 10),
          residuals = abs(.pred - logged_aid)) %>%
@@ -172,7 +175,7 @@ augment(lm_fit, full_data) %>%
 
 ```
 
-
+## Building an alternative model (logistic regression)
 
 ```{r}
 ## Logistic
@@ -199,7 +202,7 @@ tidy(logit.fit)
 
 ```
 
-
+## Multinomial regression
 
 ```{r}
 ## Multinomial 
@@ -225,13 +228,7 @@ multi.fit %>%
 
 
 
-
-
-
-
-
-
-
+## Saving the data
 
 ```{r}
 
