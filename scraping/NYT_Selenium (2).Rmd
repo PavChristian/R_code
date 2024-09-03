@@ -1,0 +1,229 @@
+---
+title: "NYT Selenium"
+author: "Pavel"
+date: "6/23/2022"
+editor_options:
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+library(anytime)
+library(xml2)
+library(lubridate)
+library(robotstxt)
+library(tidyverse)
+library(RSelenium)
+library(netstat)
+paths_allowed(paths = "https://www.nytimes.com/2008/01/19/us/politics/20huckabee-text.html")
+```
+
+
+## Starting up the server, going to the website, and logging in 
+
+
+```{r}
+rs_driver_object <- rsDriver(browser = "firefox",
+                             verbose = FALSE,
+                             port = free_port()) 
+
+
+remDr <- rs_driver_object$client 
+
+remDr$navigate("https://www.nytimes.com/2020/12/31/opinion/2021-economy-recovery.html") ## Navigating to the NYT website
+
+
+#DO NOT FORGET TO SIGN IN 
+```
+
+
+
+## Reading in a metadata csv  (only do it when reading in a metadata file for the first time)
+
+```{r}
+nyt_2014 <- read_csv('~/Documents/All things R /CURI /NYT_related /Metadata only/nyt_2014_metadata') %>%
+  mutate(full_text = NA)
+```
+
+
+
+## Read in the dataset and reorder columns (for partially annotated ones)
+
+```{r}
+nyt_2014_pa <- read_csv('~/Documents/All things R /CURI /NYT_related /Metadata only/PA /nyt_2014_pa.csv')
+nyt_2014_pa_check <- nyt_2014_pa %>%
+  select(3, 9, 10, 31) 
+
+
+```
+
+
+
+## The functions 
+
+```{r}
+
+get_text <- function(x) {
+  tryCatch({
+    suppressMessages({
+      text_element <- remDr$findElements(using = "css selector", ".evys1bk0") %>%
+        lapply(., function(x) x$getElementText()) %>%
+        unlist() %>%
+        paste(.[1:length(.)], collapse = "")
+      text_element
+    })
+  }, 
+  error = function(e) {
+    NA_character_
+  }
+)
+}
+
+
+
+true_nyt_scraper <- function(dataset, start_date, final_date) {
+  p <- which(colnames(dataset) == "response.docs.pub_date")
+  t <- which(colnames(dataset) == "response.docs.document_type")
+  r <- which(colnames(dataset) == "response.docs.web_url")
+  u <- 31
+  nyt_marker <- "^https://www.nytimes"
+  date <- dataset[[p]] %>% ## Date column number 
+  anydate(tz = "UTC")
+  remDr$setTimeout(type = "implicit", milliseconds = 500)
+  start_date_lim <- which(date == start_date)[1]
+  end_date_lim <- which(date == final_date) %>%
+  tail(n = 1)
+  j <- 0
+  for (i in start_date_lim:end_date_lim) {
+    if (i >=2) {
+      k <- i - 1
+    }
+    else {
+      k <- i
+    }
+    if (dataset[[i, p]] %>% anydate(tz = "UTC") > dataset[[k, p]] %>% anydate(tz = "UTC")) {
+      write_csv(dataset, '~/Documents/All things R /CURI /NYT_related /Metadata only/PA /nyt_2014_pa.csv') ## change every time you change a year 
+    }
+    if (str_detect(dataset[i, r], nyt_marker) == TRUE && dataset[i, t] == "article") { 
+      remDr$navigate(dataset$response.docs.web_url[i])
+      dataset[i, u] = get_text()
+      j <- j +1
+      Sys.sleep(1)
+      if (j %% 100 == 0) {
+        diff <- end_date_lim - i
+        print(paste(diff, "rows left"))
+        Sys.sleep(120)
+    }
+    dataset <- dataset %>%
+      rename(full_text = colnames(dataset)[u])
+    }
+  else {
+    dataset[i, u] = NA
+      j <- j + 1
+  }
+  }
+  dataset
+  write_csv(dataset, '~/Documents/All things R /CURI /NYT_related /Metadata only/PA /nyt_2014_pa.csv')
+} ## Change the path every time you change a year 
+
+## Secondary scraper 
+secondary_nyt_scraper <- function(dataset, start_date, final_date) {
+  p <- which(colnames(dataset) == "response.docs.pub_date")
+  t <- which(colnames(dataset) == "response.docs.document_type")
+  r <- which(colnames(dataset) == "response.docs.web_url")
+  u <- 31
+  nyt_marker <- "^https://www.nytimes"
+  date <- dataset[[p]] %>%
+  anydate(tz = "UTC")
+  remDr$setTimeout(type = "implicit", milliseconds = 500)
+  start_date_lim <- which(date == start_date)[1]
+  end_date_lim <- which(date == final_date) %>%
+  tail(n = 1)
+  j <- 0
+  for (i in start_date_lim:end_date_lim) {
+    if (str_detect(dataset[i, r], nyt_marker) == TRUE && dataset[i, t] == "article" &&
+        is.na(dataset[i, u])) {
+      remDr$navigate(dataset$response.docs.web_url[i])
+      dataset[i, u] = remDr$findElements(using = "css selector", ".evys1bk0") %>%
+        lapply(., function(x) x$getElementText()) %>%
+        unlist() %>%
+        paste(.[1:length(.)], collapse = "")
+    j <- j +1
+    Sys.sleep(2)
+      if (j %% 100 == 0) {
+        Sys.sleep(120)
+    }
+    dataset <- dataset %>%
+      rename(full_text = colnames(dataset)[u])
+    }
+  }
+  dataset
+}
+
+## Checker 
+
+checker <- function(dataset_full, start_date, final_date){
+  nyt_marker <- "^https://www.nytimes"
+  dataset_check <- dataset_full %>%
+  filter(response.docs.pub_date <= final_date  & response.docs.pub_date >= start_date) %>% #The last date of scraping 
+  filter(is.na(full_text)) %>%
+  filter(response.docs.document_type == "article") %>%
+  filter(str_detect(.[[3]], nyt_marker) == TRUE) 
+dataset_check
+}
+
+```
+
+
+ ## Full scraper (VERY IMPORTANT)
+```{r}
+mega_scraper <- function (dataset, start_date, final_date){
+  dataset_full <- true_nyt_scraper(dataset, start_date, final_date)
+  j <- 0
+  while (nrow(checker(dataset_full, start_date, final_date)) > 0) {
+    print(j)
+    dataset_full <- secondary_nyt_scraper(dataset_full, start_date, final_date)
+    j <- j + 1
+    if (j > 4) {
+      break;
+    }
+  }
+  dataset_full
+  write_csv(dataset_full, "~/Documents/All things R /CURI /NYT_related /Metadata only/PA /nyt_2014_pa.csv") ## Change each year 
+}
+
+nyt_2014_pa <- mega_scraper(nyt_2014_pa, "2014-01-03", "2014-01-05") ## Change the name each year and make sure it is pa in the brackets when you run the second time  
+  
+```
+
+
+
+
+##Check (if you are not confident it has scraped everything it should have)
+
+```{r}
+
+## Dates should match on both functions 
+checker(nyt_2014_pa, "2014-01-01", "2014-01-01")
+nyt_2014_pa <- secondary_nyt_scraper(nyt_2014_pa, "2014-01-02", "2014-01-02")
+
+
+```
+
+## Saving your file (if needed)
+
+```{r}
+write_csv(nyt_2014_pa, "~/Documents/All things R /CURI /NYT_related /Metadata only/PA /nyt_2008_pa.csv")
+```
+
+
+#Terminating 
+
+```{r}
+remDr$close()
+rs_driver_object$server$stop()
+```
+
+
+
+

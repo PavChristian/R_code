@@ -1,0 +1,243 @@
+---
+title: "Sentiment anlsys"
+author: "Pav"
+date: '2022-07-25'
+editor_options:
+  chunk_output_type: console
+---
+```{r}
+library(tidyverse)
+library(readxl)
+library(writexl)
+library(tidymodels)
+library(ggrepel)
+
+Sanctions <- read_excel("GSDB_V2.xls")
+US_aid <- read_csv("us_foreign_aid_country.csv")
+WSJ_LIWC <- read_csv("WSJ_5_LIWC.csv")
+write_csv(WSJ_1989_filter, "WSJ_1989_filter.csv")
+```
+
+## Tidying 
+
+```{r}
+tidy_aid <- US_aid %>%
+  mutate(year = parse_number(`Fiscal Year`)) %>%
+  select(c(1, 2, 8, 6:12)) %>%
+  group_by(`Country Name`, year) %>%
+  summarize(total_aid = sum(current_amount)) %>%
+  rename(target = `Country Name`) %>%
+  filter(year >= 2000 & year <= 2008)
+
+```
+
+```{r}
+tone_5 <- WSJ_LIWC[-1,] %>% ## Neither Congo
+  filter(!str_detect(Analytic, "[A-Za-z]"),
+         !str_detect(Clout, "[A-Za-z]"),
+         !str_detect(Tone, "[A-Za-z]"),
+         str_detect(C, "^[A-Z]")) %>%
+  mutate(H = parse_number(H),
+         D = parse_number(D)) %>%
+  group_by(C, D) %>%
+  summarize(avg_tone = mean(Tone, na.rm = TRUE),
+            avg_clout = mean(Clout, na.rm = TRUE),
+            avg_analys = mean(Analytic, na.rm = TRUE),
+            avg_wc = median(H, na.rm = TRUE)) %>%
+  mutate(C = ifelse(C =="Cape Verde", "Cabo Verde", C),
+         C = ifelse(C == "China", "China (P.R.C.)", C),
+         C = ifelse(C == "Swaziland", "Eswatini", C),
+         C = ifelse(C == "Kiribati", "Kiribati, Republic of", C),
+         C = ifelse(C == "Federated States of Micronesia", "Micronesia, Federated States of", C),
+         C = ifelse(C == "Slovakia", "Slovak Republic", C),
+         C = ifelse(C == "Ivory Coast", "Cote d'Ivoire", C),
+         C = ifelse(C == "Czech Republic", "Czechia", C))
+         
+
+
+  
+
+  
+
+```
+
+
+```{r}
+gabs <- function(name){
+  r <- ifelse(is.na(name), 0, name)
+  r
+}
+
+US_sanctions <- Sanctions %>%
+  filter(str_detect(sanctioning_state, "United States")) %>%
+  mutate(severity = trade + arms + military + financial + travel + other,
+         sanctions = ifelse(severity > 0, 1, 0)) %>%
+  left_join(tone_5, by = c('sanctioned_state' = 'C')) %>%
+  mutate(sanctions = ifelse(D >= begin & D <= end, 1, 0)) %>%
+  filter(sanctions == 1) %>%
+  group_by(sanctioned_state) %>%
+  distinct(D, .keep_all = TRUE) %>%
+  ungroup() %>%
+  select(c(2, 6:17)) %>%
+  rename(C = sanctioned_state)
+  
+  
+
+sanc_tone <- tone_5 %>%
+  left_join(US_sanctions, by = c("C" , "D")) %>%
+  mutate(trade = ifelse(is.na(trade), 0, trade),
+         arms = ifelse(is.na(arms), 0, arms),
+         military = gabs(military),
+         financial = gabs(financial),
+         travel = gabs(travel),
+         other = gabs(other),
+         severity = gabs(severity),
+         sanctions = gabs(sanctions),
+         C = ifelse(C == "South Korea", "Korea, Republic of", C),
+         C = ifelse(C == "North Korea", "Korea, Democratic Republic of", C),
+         C = ifelse(C == "Myanmar", "Burma (Myanmar)", C)) %>%
+  rename(target = C,
+         year = D) 
+
+full_data <- tidy_aid %>%
+  left_join(sanc_tone, by = c("target", "year")) %>%
+  mutate(econ_sanc = trade + financial,
+         econ_sanc = ifelse(econ_sanc > 0, 1, 0),
+         non_econ_sanc = other + travel + arms + military,
+         non_econ_sanc = ifelse(non_econ_sanc > 0, 1, 0),
+         sanction_cat = ifelse(non_econ_sanc == 0 & econ_sanc == 1, "Economic", "Other"),
+         sanction_cat = ifelse(non_econ_sanc == 1 & econ_sanc == 1, "Combined", sanction_cat),
+         Yemen = ifelse(target == "Yemen", 1, 0),
+         Afghanistan = ifelse(target == "Afganistan", 1, 0),
+         Somalia = ifelse(target == "Somalia", 1, 0),
+         sanctions = ifelse(sanctions == 1, "Yes", "No"))
+```
+
+
+
+
+```{r}
+
+outliers <- full_data %>%
+  mutate(category = ifelse(avg_tone < 15 | avg_tone > 75, "Yes", "No")) %>%
+  unite("Country_Year", target:year, remove = FALSE, sep =" ") %>%
+  filter(avg_tone < 15 | avg_tone > 75)
+
+
+#Linear 
+full_data %>%
+  mutate(category = ifelse(avg_tone < 15 | avg_tone > 75, "Yes", "No")) %>%
+  ggplot(aes(avg_tone, total_aid, color = category)) + 
+  geom_point(show.legend = FALSE) + geom_smooth(color = "black") +
+  scale_colour_manual(values = c("orange", "#B65FCF")) +
+  scale_y_log10() +
+  scale_x_log10() + 
+  theme_minimal() + 
+  labs(x = "Sentiment score", 
+       y = "Total aid", 
+       title = "Aid as a function of sentiment score") +
+  geom_label_repel(aes(label = Country_Year), 
+                   data = outliers, show.legend = FALSE) +
+  theme(plot.title = element_text(hjust = 0.5, size = 50),
+        text =  element_text(family = "Times New Roman", size = 36),
+        panel.background = element_rect(fill = "#FFFFE3",
+                                    colour = "#FFFFE3"),
+        )
+
+
+
+
+lm_model <- linear_reg() %>% 
+  set_engine('lm') %>% 
+  set_mode('regression')
+
+lm_wflow <- workflow() %>%
+  add_model(lm_model) %>%
+  add_formula(total_aid ~ avg_tone + Yemen + Afghanistan + Somalia) %>%
+  step_lag(avg_tone, lag = 1) %>%
+  step_log(all_vars, base = 10)
+
+lm_fit <- fit(lm_wflow, full_data)
+
+tidy(lm_fit)
+
+glance(lm_fit)
+
+
+augment(lm_fit, full_data) %>%
+  mutate(logged_aid = log(total_aid, base = 10),
+         residuals = abs(.pred - logged_aid)) %>%
+  arrange(desc(residuals)) %>%
+  head(n = 15)
+
+```
+
+
+
+```{r}
+## Logistic
+logit.model <- logistic_reg() %>%
+  set_engine("glm") %>%
+  set_mode("classification")
+
+default.recipe <- 
+  recipe(sanctions ~ avg_tone + Yemen + Afghanistan + Somalia, data = full_data) %>%
+  update_role(avg_tone, new_role = "ID") %>%
+  step_lag(avg_tone, lag = 1)
+
+logit.wflow <- workflow() %>%
+  add_recipe(default.recipe) %>%
+  add_model(logit.model) 
+
+logit.fit <- fit(logit.wflow, full_data)
+
+tidy(logit.fit)
+
+
+
+
+
+```
+
+
+
+```{r}
+## Multinomial 
+
+multi.model <- multinom_reg() %>%
+  set_engine("nnet") %>%
+  set_mode("classification")
+
+multi.recipe <- 
+  recipe(sanction_cat ~ avg_tone + Yemen + Afghanistan + Somalia, data = full_data) %>%
+  update_role(avg_tone, new_role = "ID") %>%
+  step_lag(avg_tone, lag = 1)
+
+multi.wflow <- workflow() %>%
+  add_recipe(multi.recipe) %>%
+  add_model(multi.model) 
+
+
+multi.fit <- fit(multi.wflow, full_data)
+multi.fit %>% 
+  extract_fit_parsnip() %>%
+```
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+
+
+write_csv(full_data, "~/Documents/All things R /CURI /Other data/full_data.csv")
+```
+
+
+
