@@ -15,7 +15,6 @@ library(tidyverse)
 library(rvest)
 library(lubridate)
 library(anytime)
-nyt_api_key <- "B8Swl3B2OdxnBuacJyzDHcc93gVPbi1i"
 ```
 
 ## Query 
