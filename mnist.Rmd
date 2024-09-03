@@ -1,0 +1,264 @@
+---
+title: "Challenge number 1"
+author: "Pavel, Areeba, and Parker" 
+output: pdf_document
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(dslabs)
+library(tidyverse)
+library(tidymodels)
+library(discrim)
+```
+
+
+# Dataset creation 
+```{r}
+#Extracting features 
+mnist <- read_mnist("~/Mscs 341 S22/Class/Data")
+get_some <- function(len, val) {
+  ret_vec <- vector(length = len)
+  index <- 1
+  count <- 1
+  set.seed(1234)
+  rand_index <- sample(1:60000, 60000, replace = TRUE)
+  while(count != len+1) {
+    if(mnist$train$labels[rand_index[index]] == val) {
+      ret_vec[count] <- rand_index[index]
+      count <- count + 1
+    }
+    index <- index + 1
+  }    
+  ret_vec
+} 
+
+t7 <- tibble(labels = factor(7), index = get_some(600, 7))
+t8 <- tibble(labels = factor(8), index = get_some(400, 8))
+mnist_78 <- rbind(t7, t8)
+head(mnist_78)
+```
+
+# Feature Definition
+
+We chose the following features: 1). a 5x5 square area in the center of the image, and 2). the bottom left quadrant of the image.
+
+We chose the first feature to calculate the proportions of black pixels in the center 5x5 area in the of the image because we expect a smaller proportion of black pixels in the center of the image of an 8 than a 7. We expect it to be this way because of the universal shape of 8 that overlaps itself in the middle of the shape. This is not apparent in a 7 because we expect the center space of a 7 to be containing a greater proportion of black pixels.
+
+Similarly, we chose the second feature to calculate the proportion of black pixels in the lower left quadrant because we expect that an image of 7 will have greater proportion of black pixels than white here compared to an image of an 8 due to their differences in shape. We have this intuition because if we split the shape of an 8 into quadrants, we expect that each of the 4 areas will have about 1/4 of the shape due to it's symmetry. However, when looking at a 7 and splitting that into a quadrant, more often than not, we expect the shape of the 7 to fall mostly in the top two quadrants and the bottom right, making the bottom left more empty and have a greater proportion of black pixels than white in that quadrant. 
+
+# Feature extraction 
+
+```{r}
+v2 <- vector(length = 1000)
+v3 <- vector(length = 1000)
+for (i in 1:1000) {
+  mat <- matrix(mnist$train$images[mnist_78[[2]][i],], nrow = 28, ncol = 28)
+  x1_sum <- 0
+  for (j in 12:16) 
+    for (k in 12:16) 
+      if (mat[j,k] < 128) 
+          x1_sum = x1_sum + 1
+  x2_sum <- 0
+  for (j in 1:14) 
+    for (k in 15:28) 
+      if (mat[j,k] < 128) 
+          x2_sum = x2_sum + 1
+  v2[i] <- x1_sum/196
+  v3[i] <- x2_sum/196
+}
+
+#Explarotary data analysis 
+
+banana <- mnist_78 %>%
+  add_column(x_1 = v2,
+             x_2 = v3)
+
+banana %>% #insane results 
+  ggplot(aes(labels, x_1, fill = labels)) +
+  geom_boxplot() 
+
+banana %>%
+  ggplot(aes(labels, x_2, fill = labels)) +
+  geom_boxplot()
+
+banana %>%
+  ggplot(aes(x_1, x_2, color = labels)) + 
+  geom_point()
+
+```
+
+```{r}
+#Separating datasets into training and testing 
+set.seed(1234)
+banana_split <- initial_split(banana, prop = 0.8)
+train_banana <- training(banana_split)
+test_banana <- testing(banana_split)
+```
+
+```{r}
+#Model building (linear discriminant analysis)
+
+#Linear discriminant model 
+lda_model <- discrim_linear() %>%
+  set_engine("MASS") %>%
+  set_mode("classification")
+
+recipe <- recipe(labels ~ x_1 + x_2, data = train_banana)
+
+lda_wflow <- workflow() %>%
+  add_recipe(recipe) %>%
+  add_model(lda_model) 
+
+lda_fit <- fit(lda_wflow, train_banana)
+
+#Model accuracy 
+
+ldr_tbl <- augment(lda_fit, test_banana)
+
+mean(ldr_tbl$labels != ldr_tbl$.pred_class)
+
+
+
+```
+
+
+```{r}
+#Quadratic discriminant analysis 
+qda_model <- discrim_quad() %>%
+  set_engine("MASS") %>%
+  set_mode("classification")
+
+qda_workflow <- workflow() %>%
+  add_recipe(recipe) %>%
+  add_model(qda_model)
+
+qda_fit <- fit(qda_workflow, train_banana)
+
+#calculating error rate
+
+qda_tbl <- augment(qda_fit, test_banana)
+mean(qda_tbl$labels != qda_tbl$.pred_class)
+
+
+
+```
+
+QDA model has a slightly lower misclassification rate than that of the LDA model. 
+
+
+# Visualizations 
+
+```{r}
+#Plot 
+
+plot_boundary <- function(fit){
+  vekky <- seq(0, 1, by = 0.02)
+  my_secret_grid <- expand_grid(x_1 = vekky, x_2 = vekky)
+  augment(fit, my_secret_grid) %>%
+    ggplot() +
+      geom_raster(aes(x_1, x_2, fill = .pred_class)) +
+      scale_fill_discrete(name = "predicted class")
+}
+#Linear discriminant analysis 
+
+plot_boundary(lda_fit)
+
+#Quadratic discriminant analysis
+
+plot_boundary(qda_fit)
+```
+
+# Changing things up 
+
+```{r}
+c5 <- tibble(labels = factor(5), index = get_some(300, 5))
+c7 <- tibble(labels = factor(7), index = get_some(300, 7))
+c8 <- tibble(labels = factor(8), index = get_some(400, 8))
+mnist_578 <- rbind(c5, c7, c8)
+mnist_578
+
+vx <- vector(length = 1000)
+vy <- vector(length = 1000)
+
+for (i in 1:1000) {
+  mat <- matrix(mnist$train$images[mnist_578[[2]][i],], nrow = 28, ncol = 28)
+  xx_sum <- 0
+  for (j in 12:16) 
+    for (k in 12:16) 
+      if (mat[j,k] < 128) 
+          xx_sum = xx_sum + 1
+  xy_sum <- 0
+  for (j in 1:14) 
+    for (k in 15:28) 
+      if (mat[j,k] < 128) 
+          xy_sum = xy_sum + 1
+  vx[i] <- xx_sum/196
+  vy[i] <- xy_sum/196
+}
+
+samantha <- mnist_578 %>%
+  add_column(x_1 = vx,
+             x_2 = vy)
+
+samantha %>%
+  ggplot(aes(labels, x_1, fill = labels)) +
+  geom_boxplot()
+
+samantha %>%
+  ggplot(aes(labels, x_2, fill = labels)) +
+  geom_boxplot()
+```
+
+
+```{r}
+#Creating testing and training datasets 
+samantha_split <- initial_split(samantha, prop = 0.8)
+train_samantha <- training(samantha_split)
+test_samantha <- testing(samantha_split)
+```
+
+
+
+```{r}
+#Creating the model 
+qda_model <- discrim_quad() %>%
+  set_engine("MASS") %>%
+  set_mode("classification")
+
+new_recipe <- recipe(labels ~ x_1 + x_2, data = train_samantha)
+qda_workflow <- workflow() %>%
+  add_recipe(new_recipe) %>%
+  add_model(qda_model)
+
+qda_fit2 <- fit(qda_workflow, train_samantha)
+
+#Estimating error 
+
+qda_tbl2 <-augment(qda_fit2, test_samantha)
+
+mean(qda_tbl2$labels != qda_tbl2$.pred_class)
+
+```
+
+
+```{r}
+qda_tbl2 %>%
+  conf_mat(labels, .pred_class)
+```
+
+Looking at the confusion matrix, we can see that our model does not work very well in determining 5 from 8. It is noticeable that 5 and 8 are mixed up by the model. We see 32 incorrect prediction of 5 being 8, and 19 incorrect prediction of 8 being 5. We do not see such a drastic prediction issue between 7 and 8, or 7 and 5. 
+
+The model mistakes 5 as 8 often. This is because 5 has a line in the center, making it have a larger proportion of white pixels in the center than black. This is what we see on images of 8, where the shape of 8 crosses itself. So, it makes sense that the model is mistaking 5 for 8 often because of tis feature. 
+
+Additionally, unlike with 7, 5 has more white pixels in the bottom left quadrant because of the width of the number. The digit 5 is more round and wide, so a noticeable part of it falls in the bottom left quadrant. This is different than 7, which as described previously, has minimum overlap onto the bottom left quadrant usually due to it's shape.  
+
+
+```{r}
+plot_boundary(qda_fit2)
+```
+
+
+
+
