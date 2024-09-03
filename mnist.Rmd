@@ -17,7 +17,7 @@ library(discrim)
 # Dataset creation 
 ```{r}
 #Extracting features 
-mnist <- read_mnist("~/Mscs 341 S22/Class/Data")
+mnist <- read_mnist("Data")
 get_some <- function(len, val) {
   ret_vec <- vector(length = len)
   index <- 1
