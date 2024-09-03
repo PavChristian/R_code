@@ -41,7 +41,7 @@ remDr$navigate("https://www.nytimes.com/2020/12/31/opinion/2021-economy-recovery
 ## Reading in a metadata csv  (only do it when reading in a metadata file for the first time)
 
 ```{r}
-nyt_2014 <- read_csv('~/Documents/All things R /CURI /NYT_related /Metadata only/nyt_2014_metadata') %>%
+nyt_2014 <- read_csv('nyt_2014_metadata') %>%
   mutate(full_text = NA)
 ```
 
@@ -50,7 +50,7 @@ nyt_2014 <- read_csv('~/Documents/All things R /CURI /NYT_related /Metadata only
 ## Read in the dataset and reorder columns (for partially annotated ones)
 
 ```{r}
-nyt_2014_pa <- read_csv('~/Documents/All things R /CURI /NYT_related /Metadata only/PA /nyt_2014_pa.csv')
+nyt_2014_pa <- read_csv('nyt_2014_pa.csv')
 nyt_2014_pa_check <- nyt_2014_pa %>%
   select(3, 9, 10, 31) 
 
@@ -123,7 +123,7 @@ true_nyt_scraper <- function(dataset, start_date, final_date) {
   }
   }
   dataset
-  write_csv(dataset, '~/Documents/All things R /CURI /NYT_related /Metadata only/PA /nyt_2014_pa.csv')
+  write_csv(dataset, 'nyt_2014_pa.csv')
 } ## Change the path every time you change a year 
 
 ## Secondary scraper 
@@ -189,7 +189,7 @@ mega_scraper <- function (dataset, start_date, final_date){
     }
   }
   dataset_full
-  write_csv(dataset_full, "~/Documents/All things R /CURI /NYT_related /Metadata only/PA /nyt_2014_pa.csv") ## Change each year 
+  write_csv(dataset_full, "nyt_2014_pa.csv") ## Change each year 
 }
 
 nyt_2014_pa <- mega_scraper(nyt_2014_pa, "2014-01-03", "2014-01-05") 
@@ -213,7 +213,7 @@ nyt_2014_pa <- secondary_nyt_scraper(nyt_2014_pa, "2014-01-02", "2014-01-02")
 ## Saving your file (if needed)
 
 ```{r}
-write_csv(nyt_2014_pa, "~/Documents/All things R /CURI /NYT_related /Metadata only/PA /nyt_2008_pa.csv")
+write_csv(nyt_2014_pa, "nyt_2008_pa.csv")
 ```
 
 

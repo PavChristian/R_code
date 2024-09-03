@@ -233,7 +233,7 @@ multi.fit %>%
 ```{r}
 
 
-write_csv(full_data, "~/Documents/All things R /CURI /Other data/full_data.csv")
+write_csv(full_data, "full_data.csv")
 ```
 
 

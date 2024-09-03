@@ -109,7 +109,7 @@ b <- cat("eeeeeee", a,"elle", sep = '')
 jan_2008 <- fromJSON("https://api.nytimes.com/svc/archive/v1/2008/1.json?api-key={api}", flatten = TRUE) %>%
   data.frame() 
 
-query <- str_glue("https://api.nytimes.com/svc/archive/v1/", year, "/", day, ".json?api-key=B8Swl3B2OdxnBuacJyzDHcc93gVPbi1i", sep = '')
+query <- str_glue("https://api.nytimes.com/svc/archive/v1/", year, "/", day, ".json?api-key={api}", sep = '')
 
 
 
@@ -144,7 +144,7 @@ nyt_2018 <- nyt_year_scraper(2018, 1, 12)
 
 nyt_2012 <- rbind(nyt_2012_1, nyt_2012_2)
 
-write_csv(nyt_2018, "~/Documents/All things R /CURI /NYT_related /Metadata only/nyt_2018_metadata")
+write_csv(nyt_2018, "nyt_2018_metadata")
 
 nyt_2011[102969, 11]
 
