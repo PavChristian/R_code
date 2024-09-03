@@ -22,7 +22,7 @@ nyt_api_key <- "B8Swl3B2OdxnBuacJyzDHcc93gVPbi1i"
 
 
 ```{r}
-
+# Scraping metadata
 one <-1 
 jan2019_nyt <- fromJSON("https://api.nytimes.com/svc/archive/v1/2019/1.json?api-key={api}", flatten = TRUE) %>%
   data.frame()
@@ -117,7 +117,7 @@ fromJSON(query)
 ```
 
 
-#Trying to scrape a year 
+#Scraping a year
 
 ```{r}
 nyt_year_scraper <- function(year, start_month, end_month) {
@@ -155,6 +155,9 @@ nyt_2011[102969, 11]
 
 
 ```{r}
+
+#Trying a scraping on a smaller scale
+
 true_nyt_scraper <- function(dataset, row_lim) {
   u <- ncol(dataset) + 1
   dataset[u] <- c()
@@ -176,11 +179,11 @@ true_nyt_scraper <- function(dataset, row_lim) {
     rename(full_text = colnames(dataset)[u])
 }
 
-nyt_2008 <- read_csv("~/Documents/All things R /CURI /NYT_related /Metadata only/nyt_2008_metadata")
+nyt_2008 <- read_csv("nyt_2008_metadata")
 
 
 first_50 <- true_nyt_scraper(nyt_2008, 64)
-
+#Checking the data
 
 nyt_2008 %>%
   distinct(response.docs.abstract, .keep_all = TRUE) %>%

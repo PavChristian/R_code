@@ -1,6 +1,6 @@
 ---
 title: "NYT Selenium"
-author: "Pavel"
+author: "Pavel-Christian"
 date: "6/23/2022"
 editor_options:
   chunk_output_type: console
@@ -192,7 +192,7 @@ mega_scraper <- function (dataset, start_date, final_date){
   write_csv(dataset_full, "~/Documents/All things R /CURI /NYT_related /Metadata only/PA /nyt_2014_pa.csv") ## Change each year 
 }
 
-nyt_2014_pa <- mega_scraper(nyt_2014_pa, "2014-01-03", "2014-01-05") ## Change the name each year and make sure it is pa in the brackets when you run the second time  
+nyt_2014_pa <- mega_scraper(nyt_2014_pa, "2014-01-03", "2014-01-05") 
   
 ```
 
