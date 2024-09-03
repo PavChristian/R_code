@@ -16,7 +16,7 @@ library(robotstxt)
 library(tidyverse)
 library(RSelenium)
 library(netstat)
-paths_allowed(paths = "https://www.proquest.com/docview/848108862/B8AAA9724B18444CPQ/4?accountid=351")
+paths_allowed(paths = path)
 ```
 
 ## Selenium server 
