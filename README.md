@@ -9,3 +9,6 @@ This folder contains multiple files with code used for scraping and sentiment an
   - sentiment_analysis -- code for transforming data, calculating sentiment scores, and applying models to test the existence of a relationship between sanctions and the sentiment in media coverage.
 - [china_trade](https://github.com/PavChristian/R_code/tree/main/china_trade)
 Contains code I used to build gravity models and graphs for an academic paper about the relationship between democracy in the former Soviet space and trade with China.
+
+- [MNIST](https://github.com/PavChristian/R_code/blob/main/mnist.Rmd)
+Contains code for building models used for predicting numbers from the famous MNIST dataset. This particular file leverages QDA and LDA to distinguish between 7s and 8s. 
