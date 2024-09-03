@@ -1,4 +1,4 @@
-# R models
+# R code
 A collection of R files (mostly modelling and scraping) 
 
 - [scraping](https://github.com/PavChristian/R_code/tree/main/scraping)
