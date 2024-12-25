@@ -12,6 +12,9 @@ library(readxl)
 library(writexl)
 library(tidymodels)
 library(ggrepel)
+library(plm)
+library(sandwich)
+library(lmtest)
 # Reading in the data 
 Sanctions <- read_excel("GSDB_V2 (1)/GSDB_V2.xls")
 US_aid <- read_csv("us_foreign_aid_country.csv")
@@ -119,7 +122,6 @@ full_data <- tidy_aid %>%
 ## Building graphs and models 
 
 
-
 ```{r}
 # Finding outliers
 outliers <- full_data %>%
@@ -174,6 +176,40 @@ augment(lm_fit, full_data) %>%
   head(n = 15)
 
 ```
+
+
+
+## Fixed effects (using a different dataset)
+
+```{r}
+data <- read_csv("fixed.csv") %>%
+  mutate(across(
+    c(foreign_aid, population, GDP, education, UN_distance, 
+      geographic_distance, trade_flow, sentiment),
+    ~ log(. + 1)  # Add 1 to handle zeroes before logging
+  ))
+
+
+formula <- foreign_aid ~ population + GDP + education + UN_distance + 
+  geographic_distance + trade_flow + war + democracy + sentiment
+
+# Define the panel data structure
+pdata <- pdata.frame(data, index = c("country_id", "year"))
+
+# Fixed effects model with two-way fixed effects
+model <- plm(
+  formula,
+  data = pdata,
+  model = "within",
+  effect = "twoways"
+)
+
+# Summary of the model with robust standard errors
+summary(model, vcov = vcovHC(model, type = "HC0"))
+
+```
+
+
 
 ## Building an alternative model (logistic regression)
 
